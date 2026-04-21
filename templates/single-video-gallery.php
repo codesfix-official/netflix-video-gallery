@@ -1,0 +1,109 @@
+<?php
+/**
+ * Template for Single Video
+ */
+
+get_header();
+
+while (have_posts()) : the_post();
+    $video_url = get_field('video_url');
+    $video_id = nvg_get_vimeo_id($video_url);
+    $embed_url = nvg_get_vimeo_embed_url($video_url);
+    $short_desc = get_field('short_description');
+    $is_free = nvg_is_free_video(get_the_ID());
+    $categories = get_the_terms(get_the_ID(), 'video-category');
+?>
+
+<div class="nvg-single-wrapper">
+    
+    <!-- Video Player Section -->
+    <section class="nvg-single-player">
+        <div class="nvg-player-container">
+            <?php if ($embed_url) : ?>
+                <iframe src="<?php echo esc_url($embed_url); ?>" 
+                        width="100%" 
+                        height="100%" 
+                        frameborder="0" 
+                        allow="autoplay; fullscreen; picture-in-picture" 
+                        allowfullscreen>
+                </iframe>
+            <?php else : ?>
+                <div class="nvg-no-video">
+                    <p>Video not available</p>
+                </div>
+            <?php endif; ?>
+        </div>
+    </section>
+    
+    <!-- Video Info Section -->
+    <section class="nvg-single-info">
+        <div class="nvg-container">
+            <div class="nvg-info-header">
+                <h1 class="nvg-single-title"><?php the_title(); ?></h1>
+                <div class="nvg-single-meta">
+                    <?php if ($categories && !is_wp_error($categories)) : ?>
+                        <div class="nvg-categories">
+                            <?php foreach ($categories as $category) : ?>
+                                <a href="<?php echo get_term_link($category); ?>" class="nvg-category-badge">
+                                    <?php echo esc_html($category->name); ?>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                    
+                    <?php if ($is_free) : ?>
+                        <span class="nvg-free-badge">FREE</span>
+                    <?php endif; ?>
+                </div>
+            </div>
+            
+            <?php if ($short_desc) : ?>
+                <div class="nvg-single-description">
+                    <p><?php echo esc_html($short_desc); ?></p>
+                </div>
+            <?php endif; ?>
+            
+            <?php if (get_the_content()) : ?>
+                <div class="nvg-single-content">
+                    <?php the_content(); ?>
+                </div>
+            <?php endif; ?>
+        </div>
+    </section>
+    
+    <!-- Related Videos Section -->
+    <section class="nvg-related-section">
+        <div class="nvg-container">
+            <?php
+            $related = nvg_get_related_videos(get_the_ID(), 12);
+            
+            if ($related->have_posts()) :
+            ?>
+                <div class="nvg-section-header">
+                    <h2 class="nvg-section-title">Related Videos</h2>
+                </div>
+                
+                <div class="swiper nvg-related-slider">
+                    <div class="swiper-wrapper">
+                        <?php while ($related->have_posts()) : $related->the_post(); ?>
+                            <div class="swiper-slide">
+                                <?php nvg_render_video_card(get_the_ID()); ?>
+                            </div>
+                        <?php endwhile; ?>
+                    </div>
+                    <div class="swiper-button-prev"></div>
+                    <div class="swiper-button-next"></div>
+                </div>
+            <?php
+                wp_reset_postdata();
+            endif;
+            ?>
+        </div>
+    </section>
+    
+</div>
+
+<?php
+endwhile;
+get_footer();
+?>
