@@ -21,7 +21,7 @@ function nvg_ajax_filter_videos() {
     
     $args = array(
         'post_type'      => 'video-gallery',
-        'posts_per_page' => -1,
+        'posts_per_page' => 100,
         'orderby'        => 'date',
         'order'          => 'DESC',
     );

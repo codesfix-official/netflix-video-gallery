@@ -4,7 +4,7 @@
  * Plugin URI: https://yoursite.com
  * Description: Netflix-style video gallery with Vimeo integration and ACF fields
  * Version: 1.0.0
- * Author: Your Name
+ * Author: codesfix
  * Author URI: https://yoursite.com
  * License: GPL v2 or later
  * Text Domain: netflix-video-gallery
@@ -68,7 +68,6 @@ class Netflix_Video_Gallery {
         $args = array(
             'labels'              => $labels,
             'public'              => true,
-            'has_archive'         => true,
             'publicly_queryable'  => true,
             'show_ui'             => true,
             'show_in_menu'        => true,
@@ -218,6 +217,12 @@ class Netflix_Video_Gallery {
 
 // Initialize plugin
 function nvg_init() {
+    if ( ! function_exists( 'get_field' ) ) {
+        add_action( 'admin_notices', function() {
+            echo '<div class="notice notice-error"><p>' . esc_html__( 'Netflix Video Gallery requires the Advanced Custom Fields (ACF) plugin to be installed and activated.', 'netflix-video-gallery' ) . '</p></div>';
+        } );
+        return;
+    }
     return Netflix_Video_Gallery::get_instance();
 }
 add_action('plugins_loaded', 'nvg_init');

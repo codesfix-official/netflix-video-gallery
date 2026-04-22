@@ -15,8 +15,7 @@ while (have_posts()) : the_post();
 ?>
 
 <div class="nvg-single-wrapper">
-    
-    <!-- Video Player Section -->
+
     <section class="nvg-single-player">
         <div class="nvg-player-container">
             <?php if ($embed_url) : ?>
@@ -40,11 +39,15 @@ while (have_posts()) : the_post();
         <div class="nvg-container">
             <div class="nvg-info-header">
                 <h1 class="nvg-single-title"><?php the_title(); ?></h1>
+                <a class="nvg-back-btn" href="javascript:history.back()" aria-label="Go back">
+                    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                    Back
+                </a>
                 <div class="nvg-single-meta">
                     <?php if ($categories && !is_wp_error($categories)) : ?>
                         <div class="nvg-categories">
                             <?php foreach ($categories as $category) : ?>
-                                <a href="<?php echo get_term_link($category); ?>" class="nvg-category-badge">
+                                <a href="<?php echo esc_url( get_term_link( $category ) ); ?>" class="nvg-category-badge">
                                     <?php echo esc_html($category->name); ?>
                                 </a>
                             <?php endforeach; ?>

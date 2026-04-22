@@ -33,6 +33,39 @@
 }
 
 /* ==========================================================================
+   Back Button
+   ========================================================================== */
+
+.nvg-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent !important;
+    border: 1px solid rgba(255, 255, 255, 0.35) !important;
+    color: #ffffff !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    padding: 7px 16px !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    transition: background 0.2s ease, border-color 0.2s ease !important;
+    letter-spacing: 0.4px !important;
+    text-decoration: none !important;
+    margin-top: 10px !important;
+}
+
+.nvg-back-btn:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-color: #ffffff !important;
+    color: #ffffff !important;
+    text-decoration: none !important;
+}
+
+.nvg-back-btn svg {
+    flex-shrink: 0;
+}
+
+/* ==========================================================================
    Hero Section
    ========================================================================== */
 

@@ -101,11 +101,6 @@ get_header();
     <section class="nvg-categories-section">
         <div class="nvg-container">
             <?php
-            $categories = get_terms(array(
-                'taxonomy'   => 'video-category',
-                'hide_empty' => true,
-            ));
-            
             foreach ($categories as $category) :
                 $category_videos = new WP_Query(array(
                     'post_type'      => 'video-gallery',
@@ -124,11 +119,11 @@ get_header();
                 <div class="nvg-category-row" data-category="<?php echo esc_attr($category->slug); ?>">
                     <div class="nvg-category-header">
                         <h2 class="nvg-category-title">
-                            <a href="<?php echo get_term_link($category); ?>">
+                            <a href="<?php echo esc_url( get_term_link( $category ) ); ?>">
                                 <?php echo esc_html($category->name); ?>
                             </a>
                         </h2>
-                        <a href="<?php echo get_term_link($category); ?>" class="nvg-view-all">
+                        <a href="<?php echo esc_url( get_term_link( $category ) ); ?>" class="nvg-view-all">
                             View All <span>→</span>
                         </a>
                     </div>

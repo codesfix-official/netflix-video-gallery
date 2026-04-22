@@ -11,6 +11,8 @@ $term = get_queried_object();
 $args = array(
     'post_type'      => 'video-gallery',
     'posts_per_page' => -1,
+    'orderby'        => 'date',
+    'order'          => 'DESC',
     'tax_query'      => array(
         array(
             'taxonomy' => 'video-category',
@@ -49,11 +51,15 @@ if ($featured_query->have_posts()) {
 ?>
 
 <div class="nvg-category-page">
-    
+
     <!-- Page Header -->
     <div class="nvg-category-page-header">
         <div class="nvg-container">
             <h1 class="nvg-page-title"><?php echo esc_html($term->name); ?></h1>
+            <a class="nvg-back-btn" href="javascript:history.back()" aria-label="Go back">
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                Back
+            </a>
             <?php if ($term->description) : ?>
                 <p class="nvg-page-description"><?php echo esc_html($term->description); ?></p>
             <?php endif; ?>

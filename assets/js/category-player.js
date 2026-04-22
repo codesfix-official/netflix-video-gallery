@@ -8,6 +8,7 @@
     $(document).ready(function() {
         initPlayer();
         initPlaylist();
+        initPopState();
     });
     
     /**
@@ -147,9 +148,9 @@
             $('#nvg-current-description').text(data.description);
         }
         
-        // Update URL without reload (optional)
+        // Update URL without reload
         if (history.pushState && data.permalink) {
-            history.pushState(null, data.title, data.permalink);
+            history.pushState({ postId: data.id, videoId: data.video_id }, data.title, data.permalink);
         }
     }
     
@@ -204,28 +205,22 @@
     }
     
     /**
-     * Keyboard controls (optional)
+     * Handle browser back/forward navigation
      */
-    $(document).on('keydown', function(e) {
-        // Only if player is in view
-        if (!$('#nvg-vimeo-player').length) {
-            return;
-        }
-        
-        switch(e.key) {
-            case 'ArrowRight':
-            case 'n':
-            case 'N':
-                e.preventDefault();
-                playNextVideo();
-                break;
-            case 'ArrowLeft':
-            case 'p':
-            case 'P':
-                e.preventDefault();
-                playPreviousVideo();
-                break;
-        }
-    });
-    
+    function initPopState() {
+        $(window).on('popstate', function(e) {
+            var state = e.originalEvent.state;
+            if (state && state.postId) {
+                var index = playlist.findIndex(function(item) {
+                    return item.postId === state.postId;
+                });
+                if (index !== -1) {
+                    playVideoByIndex(index);
+                    return;
+                }
+            }
+            window.location.reload();
+        });
+    }
+
 })(jQuery);
