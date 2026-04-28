@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Netflix Video Gallery
  * Description: Netflix-style video gallery with Vimeo integration and ACF fields
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: codesfix
  * Author URI: https://www.codesfix.net/
  * License: GPL v2 or later
@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('NVG_VERSION', '1.0.0');
+define('NVG_VERSION', '1.0.1');
 define('NVG_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('NVG_PLUGIN_URL', plugin_dir_url(__FILE__));
 
