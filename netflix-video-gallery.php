@@ -1,11 +1,10 @@
 <?php
 /**
  * Plugin Name: Netflix Video Gallery
- * Plugin URI: https://yoursite.com
  * Description: Netflix-style video gallery with Vimeo integration and ACF fields
  * Version: 1.0.0
  * Author: codesfix
- * Author URI: https://yoursite.com
+ * Author URI: https://www.codesfix.net/
  * License: GPL v2 or later
  * Text Domain: netflix-video-gallery
  */

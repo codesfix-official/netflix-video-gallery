@@ -7,45 +7,67 @@ get_header();
 
 $term = get_queried_object();
 
-// Get videos in this category
-$args = array(
-    'post_type'      => 'video-gallery',
-    'posts_per_page' => -1,
-    'orderby'        => 'date',
-    'order'          => 'DESC',
-    'tax_query'      => array(
+// Fetch all videos in this category, ordered strictly by date DESC.
+// A single query avoids any secondary meta-value sorting that appears
+// when meta_query is mixed with orderby=date in separate queries.
+// suppress_filters = true prevents WooCommerce Memberships (and other plugins)
+// from hooking into posts_orderby / posts_join and reordering results by
+// membership access level. Ordering is handled explicitly in PHP below.
+$all_videos_query = new WP_Query(array(
+    'post_type'        => 'video-gallery',
+    'posts_per_page'   => -1,
+    'orderby'          => 'date',
+    'order'            => 'ASC',
+    'suppress_filters' => true,
+    'tax_query'        => array(
         array(
             'taxonomy' => 'video-category',
             'field'    => 'term_id',
             'terms'    => $term->term_id,
         ),
     ),
-);
+));
 
-// Check for featured video
-$featured_args = $args;
-$featured_args['posts_per_page'] = 1;
-$featured_args['meta_query'] = array(
-    array(
-        'key'     => 'featured',
-        'value'   => array('Yes', '1', true),
-        'compare' => 'IN',
-    ),
-);
+$featured_ids    = array();
+$featured_videos = array();
+$other_videos    = array();
 
-$featured_query = new WP_Query($featured_args);
-$videos_query = new WP_Query($args);
+foreach ($all_videos_query->posts as $video_post) {
+    $featured = get_field('featured', $video_post->ID);
+    $is_featured = ($featured === 'Yes' || $featured === true || $featured === '1');
+
+    if ($is_featured) {
+        $featured_ids[]    = (int) $video_post->ID;
+        $featured_videos[] = $video_post;
+    } else {
+        $other_videos[] = $video_post;
+    }
+}
+
+// Featured first (date DESC within them), then the rest (date DESC).
+// Free/paid status has zero influence on position.
+$ordered_videos = array_merge($featured_videos, $other_videos);
+
+// Safety net: re-sort each group by date DESC in PHP so no DB-level filter
+// (e.g. WooCommerce Memberships) can silently change the order.
+usort($featured_videos, function($a, $b) {
+    return strtotime($a->post_date) - strtotime($b->post_date);
+});
+usort($other_videos, function($a, $b) {
+    return strtotime($a->post_date) - strtotime($b->post_date);
+});
+$ordered_videos = array_merge($featured_videos, $other_videos);
+
+$total_videos = count($ordered_videos);
 
 // Determine initial video
 $initial_video = null;
-if ($featured_query->have_posts()) {
-    $featured_query->the_post();
-    $initial_video = get_post();
-    wp_reset_postdata();
-} elseif ($videos_query->have_posts()) {
-    $videos_query->the_post();
-    $initial_video = get_post();
-    wp_reset_postdata();
+
+foreach ($ordered_videos as $video_post) {
+    if (nvg_user_can_watch_video($video_post->ID)) {
+        $initial_video = $video_post;
+        break;
+    }
 }
 
 ?>
@@ -96,6 +118,12 @@ if ($featured_query->have_posts()) {
                         </p>
                     <?php endif; ?>
                 </div>
+            <?php else : ?>
+                <div class="nvg-player-wrapper">
+                    <div class="nvg-no-video nvg-restricted-video">
+                        <?php echo wp_kses_post(__('No videos are currently available for your membership access in this category.', 'netflix-video-gallery')); ?>
+                    </div>
+                </div>
             <?php endif; ?>
         </div>
         
@@ -104,30 +132,32 @@ if ($featured_query->have_posts()) {
             <div class="nvg-playlist-header">
                 <h3>Playlist</h3>
                 <span class="nvg-playlist-count">
-                    <?php echo $videos_query->post_count; ?> videos
+                    <?php echo esc_html($total_videos); ?> videos
                 </span>
             </div>
             
             <div class="nvg-playlist-wrapper">
                 <div id="nvg-playlist" class="nvg-playlist">
                     <?php
-                    if ($videos_query->have_posts()) :
-                        $index = 0;
-                        while ($videos_query->have_posts()) : $videos_query->the_post();
-                            $post_id = get_the_ID();
+                    if (!empty($ordered_videos)) :
+                        foreach ($ordered_videos as $index => $video_post) :
+                            $post_id = $video_post->ID;
                             $video_url = get_field('video_url', $post_id);
                             $video_id = nvg_get_vimeo_id($video_url);
                             $thumbnail = nvg_get_video_thumbnail($post_id, 'medium');
                             $is_free = nvg_is_free_video($post_id);
+                            $can_watch = nvg_user_can_watch_video($post_id);
+                            $is_locked = !$can_watch;
                             $is_active = ($initial_video && $post_id === $initial_video->ID) ? 'active' : '';
                     ?>
-                        <div class="nvg-playlist-item <?php echo $is_active; ?>" 
-                             data-video-id="<?php echo esc_attr($video_id); ?>"
+                        <div class="nvg-playlist-item <?php echo esc_attr(trim($is_active . ' ' . ($is_locked ? 'locked' : ''))); ?>" 
+                             data-video-id="<?php echo esc_attr($can_watch ? $video_id : ''); ?>"
                              data-post-id="<?php echo esc_attr($post_id); ?>"
+                             data-can-watch="<?php echo esc_attr($can_watch ? '1' : '0'); ?>"
                              data-index="<?php echo esc_attr($index); ?>">
                             <div class="nvg-playlist-thumbnail">
                                 <img src="<?php echo esc_url($thumbnail); ?>" 
-                                     alt="<?php the_title_attribute(); ?>"
+                                     alt="<?php echo esc_attr(get_the_title($post_id)); ?>"
                                      loading="lazy">
                                 <div class="nvg-playlist-play-icon">
                                     <svg viewBox="0 0 24 24" width="30" height="30">
@@ -137,15 +167,17 @@ if ($featured_query->have_posts()) {
                                 <?php if ($is_free) : ?>
                                     <span class="nvg-playlist-free-badge">FREE</span>
                                 <?php endif; ?>
+                                <?php if ($is_locked) : ?>
+                                    <span class="nvg-playlist-lock-badge">MEMBERS ONLY</span>
+                                <?php endif; ?>
                             </div>
                             <div class="nvg-playlist-info">
-                                <h4 class="nvg-playlist-title"><?php the_title(); ?></h4>
-                                <span class="nvg-playlist-index"><?php echo ($index + 1); ?> / <?php echo $videos_query->post_count; ?></span>
+                                <h4 class="nvg-playlist-title"><?php echo esc_html(get_the_title($post_id)); ?></h4>
+                                <span class="nvg-playlist-index"><?php echo esc_html($index + 1); ?> / <?php echo esc_html($total_videos); ?></span>
                             </div>
                         </div>
                     <?php
-                        $index++;
-                        endwhile;
+                        endforeach;
                         wp_reset_postdata();
                     endif;
                     ?>

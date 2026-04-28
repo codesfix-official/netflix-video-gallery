@@ -52,15 +52,19 @@ function nvg_ajax_filter_videos() {
                     continue;
                 }
             }
+
+            $video_url = get_field('video_url', $post_id);
+            $can_watch = nvg_user_can_watch_video($post_id);
             
             $videos[] = array(
                 'id'          => $post_id,
                 'title'       => get_the_title(),
                 'permalink'   => get_permalink(),
                 'thumbnail'   => nvg_get_video_thumbnail($post_id),
-                'video_url'   => get_field('video_url', $post_id),
-                'video_id'    => nvg_get_vimeo_id(get_field('video_url', $post_id)),
+                'video_url'   => $can_watch ? $video_url : '',
+                'video_id'    => $can_watch ? nvg_get_vimeo_id($video_url) : '',
                 'is_free'     => nvg_is_free_video($post_id),
+                'can_watch'   => $can_watch,
                 'description' => get_field('short_description', $post_id),
             );
         }
@@ -140,6 +144,12 @@ function nvg_ajax_get_video_data() {
     
     if (!$post || $post->post_type !== 'video-gallery') {
         wp_send_json_error('Invalid video');
+    }
+
+    if (!nvg_user_can_watch_video($post_id)) {
+        wp_send_json_error(array(
+            'message' => wp_strip_all_tags(nvg_get_video_restriction_message($post_id)),
+        ));
     }
     
     $video_url = get_field('video_url', $post_id);

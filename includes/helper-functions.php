@@ -113,6 +113,65 @@ function nvg_is_featured_video($post_id) {
 }
 
 /**
+ * Check whether current user can watch a given video
+ */
+function nvg_user_can_watch_video($post_id) {
+    $post_id = absint($post_id);
+
+    if (!$post_id) {
+        return false;
+    }
+
+    // Free videos should always remain publicly accessible.
+    if (nvg_is_free_video($post_id)) {
+        return true;
+    }
+
+    if (!function_exists('wc_memberships_is_post_content_restricted') || !function_exists('wc_memberships_user_can')) {
+        return true;
+    }
+
+    if (!wc_memberships_is_post_content_restricted($post_id)) {
+        return true;
+    }
+
+    return wc_memberships_user_can(get_current_user_id(), 'view', array('post' => $post_id));
+}
+
+/**
+ * Get the restriction message shown when a user cannot watch a paid video
+ */
+function nvg_get_video_restriction_message($post_id) {
+    $post_id = absint($post_id);
+
+    if (!$post_id) {
+        return esc_html__('This video is restricted.', 'netflix-video-gallery');
+    }
+
+    if (function_exists('wc_memberships_get_restricted_content_message') && function_exists('wc_memberships_is_post_content_restricted')) {
+        if (wc_memberships_is_post_content_restricted($post_id)) {
+            $message = wc_memberships_get_restricted_content_message(get_post($post_id));
+            if (!empty($message)) {
+                return $message;
+            }
+        }
+    }
+
+    if (!is_user_logged_in()) {
+        $login_url = wp_login_url(get_permalink($post_id));
+
+        return sprintf(
+            '<p>%s <a href="%s">%s</a></p>',
+            esc_html__('This video is for members only.', 'netflix-video-gallery'),
+            esc_url($login_url),
+            esc_html__('Log in', 'netflix-video-gallery')
+        );
+    }
+
+    return esc_html__('This video is available to members with access to this content.', 'netflix-video-gallery');
+}
+
+/**
  * Get related videos
  */
 function nvg_get_related_videos($post_id, $limit = 6) {
@@ -166,7 +225,7 @@ function nvg_render_video_card($post_id, $lazy = true) {
                     <div class="nvg-card-content">
                         <h3 class="nvg-card-title"><?php echo esc_html(get_the_title($post_id)); ?></h3>
                         <?php if ($short_desc): ?>
-                            <p class="nvg-card-description"><?php echo esc_html($short_desc); ?></p>
+                            <p class="nvg-card-description"><?php echo esc_html(wp_trim_words($short_desc, 10, '...')); ?></p>
                         <?php endif; ?>
                         <button class="nvg-play-button">
                             <svg viewBox="0 0 24 24" width="50" height="50">

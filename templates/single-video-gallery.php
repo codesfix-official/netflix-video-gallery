@@ -11,6 +11,7 @@ while (have_posts()) : the_post();
     $embed_url = nvg_get_vimeo_embed_url($video_url);
     $short_desc = get_field('short_description');
     $is_free = nvg_is_free_video(get_the_ID());
+    $can_watch_video = nvg_user_can_watch_video(get_the_ID());
     $categories = get_the_terms(get_the_ID(), 'video-category');
 ?>
 
@@ -24,7 +25,7 @@ while (have_posts()) : the_post();
             </a>
         </div>
         <div class="nvg-player-container">
-            <?php if ($embed_url) : ?>
+            <?php if ($can_watch_video && $embed_url) : ?>
                 <iframe src="<?php echo esc_url($embed_url); ?>" 
                         width="100%" 
                         height="100%" 
@@ -32,6 +33,10 @@ while (have_posts()) : the_post();
                         allow="autoplay; fullscreen; picture-in-picture" 
                         allowfullscreen>
                 </iframe>
+            <?php elseif (!$can_watch_video) : ?>
+                <div class="nvg-no-video nvg-restricted-video">
+                    <?php echo wp_kses_post(nvg_get_video_restriction_message(get_the_ID())); ?>
+                </div>
             <?php else : ?>
                 <div class="nvg-no-video">
                     <p>Video not available</p>

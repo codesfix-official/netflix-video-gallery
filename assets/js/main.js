@@ -14,8 +14,10 @@
      * Initialize Hero Slider
      */
     function initHeroSlider() {
-        if ($('.nvg-hero-slider').length) {
-            new Swiper('.nvg-hero-slider', {
+        const heroEl = document.querySelector('.nvg-hero-slider');
+
+        if (heroEl) {
+            new Swiper(heroEl, {
                 loop: true,
                 autoplay: {
                     delay: 5000,
@@ -26,12 +28,12 @@
                     crossFade: true
                 },
                 pagination: {
-                    el: '.swiper-pagination',
+                    el: heroEl.querySelector('.swiper-pagination'),
                     clickable: true,
                 },
                 navigation: {
-                    nextEl: '.swiper-button-next',
-                    prevEl: '.swiper-button-prev',
+                    nextEl: heroEl.querySelector('.swiper-button-next'),
+                    prevEl: heroEl.querySelector('.swiper-button-prev'),
                 },
             });
         }
@@ -42,12 +44,17 @@
      */
     function initCategorySliders() {
         $('.nvg-category-slider').each(function() {
+            const $row = $(this).closest('.nvg-category-row');
+
             new Swiper(this, {
                 slidesPerView: 2,
                 spaceBetween: 15,
+                watchOverflow: true,
+                observer: true,
+                observeParents: true,
                 navigation: {
-                    nextEl: $(this).closest('.nvg-category-row').find('.swiper-button-next')[0],
-                    prevEl: $(this).closest('.nvg-category-row').find('.swiper-button-prev')[0],
+                    nextEl: $row.find('.swiper-button-next')[0],
+                    prevEl: $row.find('.swiper-button-prev')[0],
                 },
                 breakpoints: {
                     640: {

@@ -65,6 +65,7 @@
             playlist.push({
                 videoId: $item.data('video-id'),
                 postId: $item.data('post-id'),
+                canWatch: Number($item.data('can-watch')) === 1,
                 index: index,
                 element: $item,
             });
@@ -92,14 +93,11 @@
         }
         
         const video = playlist[index];
-        currentIndex = index;
-        
-        // Update active state
-        $('.nvg-playlist-item').removeClass('active');
-        video.element.addClass('active');
-        
-        // Scroll to active item
-        scrollToActiveItem();
+
+        if (!video.canWatch || !video.videoId) {
+            alert('This video is available to members only.');
+            return;
+        }
         
         // Load video data via AJAX
         $.ajax({
@@ -111,10 +109,25 @@
                 post_id: video.postId,
             },
             success: function(response) {
-                if (response.success) {
-                    updatePlayerContent(response.data);
-                    loadVideoInPlayer(video.videoId);
+                if (!response.success) {
+                    const message = response.data && response.data.message
+                        ? response.data.message
+                        : 'This video is not available for your account.';
+                    alert(message);
+                    return;
                 }
+
+                currentIndex = index;
+
+                // Update active state only when playback is allowed.
+                $('.nvg-playlist-item').removeClass('active');
+                video.element.addClass('active');
+
+                // Scroll to active item
+                scrollToActiveItem();
+
+                updatePlayerContent(response.data);
+                loadVideoInPlayer(video.videoId);
             },
             error: function(xhr, status, error) {
                 console.error('AJAX error:', error);
