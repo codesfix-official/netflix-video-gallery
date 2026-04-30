@@ -1410,3 +1410,231 @@ function nvg_block_checkout_virtual_css() {
 </style>' . "\n";
 }
 add_action( 'wp_head', 'nvg_block_checkout_virtual_css', 100 );
+
+/**
+ * Inject default billing address values into WC_Customer for virtual-only carts.
+ *
+ * Block Checkout (React) reads customer billing data from the Store API /wc/store/v1/cart
+ * response when the checkout page loads. If the billing fields are empty, React's client-side
+ * validator blocks form submission before any request reaches the server.
+ *
+ * By pre-filling WC_Customer with base-location defaults we ensure React initialises the
+ * (visually-hidden) billing fields with valid placeholder values so the Place-Order button
+ * is enabled and the API request is actually sent.
+ *
+ * Fires on both normal page requests (via 'wp') and on Store API REST GET requests
+ * (via 'rest_pre_dispatch') so the customer object is populated in both paths.
+ */
+function nvg_prefill_customer_billing_defaults_for_virtual_cart() {
+    if ( ! function_exists( 'WC' ) || ! WC()->customer ) {
+        return;
+    }
+
+    if ( ! nvg_is_virtual_only_checkout_cart() ) {
+        return;
+    }
+
+    $customer = WC()->customer;
+    $base     = function_exists( 'wc_get_base_location' ) ? (array) wc_get_base_location() : array();
+    $updated  = false;
+
+    if ( empty( $customer->get_billing_country() ) && ! empty( $base['country'] ) ) {
+        $customer->set_billing_country( wc_strtoupper( (string) $base['country'] ) );
+        $updated = true;
+    }
+
+    if ( empty( $customer->get_billing_state() ) && ! empty( $base['state'] ) ) {
+        $customer->set_billing_state( (string) $base['state'] );
+        $updated = true;
+    }
+
+    if ( empty( $customer->get_billing_first_name() ) ) {
+        $customer->set_billing_first_name( 'Customer' );
+        $updated = true;
+    }
+
+    if ( empty( $customer->get_billing_last_name() ) ) {
+        $customer->set_billing_last_name( '.' );
+        $updated = true;
+    }
+
+    if ( empty( $customer->get_billing_city() ) ) {
+        $customer->set_billing_city( '-' );
+        $updated = true;
+    }
+
+    if ( empty( $customer->get_billing_address_1() ) ) {
+        $customer->set_billing_address_1( '-' );
+        $updated = true;
+    }
+
+    if ( empty( $customer->get_billing_postcode() ) ) {
+        $customer->set_billing_postcode( '00000' );
+        $updated = true;
+    }
+
+    if ( $updated ) {
+        $customer->save();
+    }
+}
+// On normal page loads (checkout page HTML render).
+add_action( 'wp', 'nvg_prefill_customer_billing_defaults_for_virtual_cart', 1 );
+
+/**
+ * Fires on every REST API request. Intercepts Store API cart/checkout GET requests so that
+ * Block Checkout's initial React state includes billing address defaults for virtual-only carts.
+ *
+ * @param mixed            $result  Current REST pre-dispatch result.
+ * @param WP_REST_Server   $server  REST server.
+ * @param WP_REST_Request  $request REST request.
+ * @return mixed Unmodified $result (we only mutate WC_Customer in memory).
+ */
+function nvg_rest_prefill_customer_billing_for_virtual_cart( $result, $server, $request ) {
+    if ( ! is_a( $request, 'WP_REST_Request' ) ) {
+        return $result;
+    }
+
+    // Only act on Store API GET requests for cart or checkout.
+    $route  = (string) $request->get_route();
+    $method = (string) $request->get_method();
+    if ( 'GET' !== $method || ! preg_match( '#^/wc/store/v\d+/(cart|checkout)$#', $route ) ) {
+        return $result;
+    }
+
+    nvg_prefill_customer_billing_defaults_for_virtual_cart();
+
+    return $result;
+}
+add_filter( 'rest_pre_dispatch', 'nvg_rest_prefill_customer_billing_for_virtual_cart', 5, 3 );
+
+/**
+ * WooCommerce Blocks still validates required address fields server-side.
+ * Mark hidden billing/address fields as optional for virtual-only carts.
+ */
+function nvg_relax_virtual_checkout_country_locale( $locale ) {
+    if ( ! is_array( $locale ) || ! nvg_is_virtual_only_checkout_cart() ) {
+        return $locale;
+    }
+
+    $optional_fields = array(
+        'first_name',
+        'last_name',
+        'company',
+        'address_1',
+        'address_2',
+        'city',
+        'state',
+        'postcode',
+        'country',
+        'phone',
+    );
+
+    foreach ( $locale as $country_code => $country_fields ) {
+        if ( ! is_array( $country_fields ) ) {
+            continue;
+        }
+
+        foreach ( $optional_fields as $field_key ) {
+            if ( ! isset( $locale[ $country_code ][ $field_key ] ) || ! is_array( $locale[ $country_code ][ $field_key ] ) ) {
+                $locale[ $country_code ][ $field_key ] = array();
+            }
+
+            $locale[ $country_code ][ $field_key ]['required'] = false;
+        }
+    }
+
+    if ( ! isset( $locale['default'] ) || ! is_array( $locale['default'] ) ) {
+        $locale['default'] = array();
+    }
+
+    foreach ( $optional_fields as $field_key ) {
+        if ( ! isset( $locale['default'][ $field_key ] ) || ! is_array( $locale['default'][ $field_key ] ) ) {
+            $locale['default'][ $field_key ] = array();
+        }
+
+        $locale['default'][ $field_key ]['required'] = false;
+    }
+
+    return $locale;
+}
+add_filter( 'woocommerce_get_country_locale', 'nvg_relax_virtual_checkout_country_locale', 9999 );
+
+/**
+ * Prefill required billing values for Store API checkout on virtual-only carts.
+ * Block checkout can still require a valid billing country before order placement.
+ */
+function nvg_prefill_virtual_store_api_billing_address( $order, $request ) {
+    if ( ! nvg_is_virtual_only_checkout_cart() || ! is_object( $order ) ) {
+        return;
+    }
+
+    $billing_from_request = array();
+    if ( is_object( $request ) && method_exists( $request, 'get_param' ) ) {
+        $raw_billing = $request->get_param( 'billing_address' );
+        if ( is_array( $raw_billing ) ) {
+            $billing_from_request = $raw_billing;
+        }
+    }
+
+    $base_location = function_exists( 'wc_get_base_location' ) ? (array) wc_get_base_location() : array();
+    $default_country = ! empty( $base_location['country'] ) ? wc_strtoupper( (string) $base_location['country'] ) : '';
+    $default_state   = ! empty( $base_location['state'] ) ? (string) $base_location['state'] : '';
+
+    $billing_email = '';
+    if ( ! empty( $billing_from_request['email'] ) ) {
+        $billing_email = sanitize_email( (string) $billing_from_request['email'] );
+    }
+    if ( empty( $billing_email ) && method_exists( $order, 'get_billing_email' ) ) {
+        $billing_email = sanitize_email( (string) $order->get_billing_email() );
+    }
+    if ( empty( $billing_email ) && is_user_logged_in() ) {
+        $user = wp_get_current_user();
+        if ( $user && ! empty( $user->user_email ) ) {
+            $billing_email = sanitize_email( (string) $user->user_email );
+        }
+    }
+
+    $first_name = '';
+    if ( ! empty( $billing_from_request['first_name'] ) ) {
+        $first_name = sanitize_text_field( (string) $billing_from_request['first_name'] );
+    }
+    if ( empty( $first_name ) && method_exists( $order, 'get_billing_first_name' ) ) {
+        $first_name = sanitize_text_field( (string) $order->get_billing_first_name() );
+    }
+    if ( empty( $first_name ) ) {
+        $first_name = __( 'Customer', 'netflix-video-gallery' );
+    }
+
+    $last_name = '';
+    if ( ! empty( $billing_from_request['last_name'] ) ) {
+        $last_name = sanitize_text_field( (string) $billing_from_request['last_name'] );
+    }
+    if ( empty( $last_name ) && method_exists( $order, 'get_billing_last_name' ) ) {
+        $last_name = sanitize_text_field( (string) $order->get_billing_last_name() );
+    }
+
+    if ( method_exists( $order, 'set_billing_first_name' ) ) {
+        $order->set_billing_first_name( $first_name );
+    }
+    if ( method_exists( $order, 'set_billing_last_name' ) ) {
+        $order->set_billing_last_name( $last_name );
+    }
+    if ( ! empty( $billing_email ) && method_exists( $order, 'set_billing_email' ) ) {
+        $order->set_billing_email( $billing_email );
+    }
+
+    if ( method_exists( $order, 'get_billing_country' ) && method_exists( $order, 'set_billing_country' ) ) {
+        $billing_country = (string) $order->get_billing_country();
+        if ( '' === $billing_country && '' !== $default_country ) {
+            $order->set_billing_country( $default_country );
+        }
+    }
+
+    if ( method_exists( $order, 'get_billing_state' ) && method_exists( $order, 'set_billing_state' ) ) {
+        $billing_state = (string) $order->get_billing_state();
+        if ( '' === $billing_state && '' !== $default_state ) {
+            $order->set_billing_state( $default_state );
+        }
+    }
+}
+add_action( 'woocommerce_store_api_checkout_update_order_from_request', 'nvg_prefill_virtual_store_api_billing_address', 5, 2 );
