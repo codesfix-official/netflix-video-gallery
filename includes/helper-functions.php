@@ -815,7 +815,7 @@ function nvg_render_membership_popup_settings_page() {
                         <th scope="row"><label for="nvg_single_buy_btn_text"><?php esc_html_e('Individual Button Text', 'netflix-video-gallery'); ?></label></th>
                         <td>
                             <input name="nvg_popup_settings[single_buy_btn_text]" id="nvg_single_buy_btn_text" type="text" class="regular-text" value="<?php echo esc_attr($settings['single_buy_btn_text']); ?>">
-                            <p class="description"><?php esc_html_e('Text shown on the single purchase button in the popup (default: Add To Card).', 'netflix-video-gallery'); ?></p>
+                            <p class="description"><?php esc_html_e('Text shown on the single purchase button in the popup (default: Add To Cart).', 'netflix-video-gallery'); ?></p>
                         </td>
                     </tr>
                 </table>
@@ -863,7 +863,7 @@ function nvg_render_membership_popup_modal() {
     $subscription_plans = nvg_get_subscription_plans();
     $single_buy_btn_text = trim((string) ($settings['single_buy_btn_text'] ?? ''));
     if ('' === $single_buy_btn_text) {
-        $single_buy_btn_text = __('Add To Card', 'netflix-video-gallery');
+        $single_buy_btn_text = __('Add To Cart', 'netflix-video-gallery');
     }
     ?>
     <div class="nvg-paywall-modal" id="nvg-paywall-modal" aria-hidden="true">
