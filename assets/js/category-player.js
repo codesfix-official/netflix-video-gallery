@@ -95,6 +95,11 @@
         const video = playlist[index];
 
         if (!video.canWatch || !video.videoId) {
+            if (window.NVGPaywall) {
+                $(document).trigger('nvg:openPaywallPopup', { postId: video.postId });
+                return;
+            }
+
             alert('This video is available to members only.');
             return;
         }
@@ -110,6 +115,11 @@
             },
             success: function(response) {
                 if (!response.success) {
+                    if (window.NVGPaywall) {
+                        $(document).trigger('nvg:openPaywallPopup', { postId: video.postId });
+                        return;
+                    }
+
                     const message = response.data && response.data.message
                         ? response.data.message
                         : 'This video is not available for your account.';

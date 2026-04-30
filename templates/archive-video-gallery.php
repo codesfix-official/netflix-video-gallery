@@ -14,6 +14,9 @@ get_header();
         $featured_args = array(
             'post_type'      => 'video-gallery',
             'posts_per_page' => 5,
+            'orderby'        => 'date',
+            'order'          => 'ASC',
+            'suppress_filters' => true,
             'meta_query'     => array(
                 array(
                     'key'     => 'featured',
@@ -23,7 +26,7 @@ get_header();
             ),
         );
         
-        $featured_query = new WP_Query($featured_args);
+        $featured_query = new \WP_Query($featured_args);
         
         if ($featured_query->have_posts()) :
         ?>
@@ -102,9 +105,12 @@ get_header();
         <div class="nvg-container">
             <?php
             foreach ($categories as $category) :
-                $category_videos = new WP_Query(array(
+                $category_videos = new \WP_Query(array(
                     'post_type'      => 'video-gallery',
                     'posts_per_page' => 12,
+                    'orderby'        => 'date',
+                    'order'          => 'ASC',
+                    'suppress_filters' => true,
                     'tax_query'      => array(
                         array(
                             'taxonomy' => 'video-category',
@@ -152,9 +158,12 @@ get_header();
     <section class="nvg-free-section">
         <div class="nvg-container">
             <?php
-            $free_videos = new WP_Query(array(
+            $free_videos = new \WP_Query(array(
                 'post_type'      => 'video-gallery',
                 'posts_per_page' => 12,
+                'orderby'        => 'date',
+                'order'          => 'ASC',
+                'suppress_filters' => true,
                 'meta_query'     => array(
                     array(
                         'key'     => 'is_free',

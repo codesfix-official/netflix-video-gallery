@@ -6,13 +6,29 @@
 get_header();
 
 while (have_posts()) : the_post();
+    $current_video_id = get_the_ID();
     $video_url = get_field('video_url');
     $video_id = nvg_get_vimeo_id($video_url);
     $embed_url = nvg_get_vimeo_embed_url($video_url);
     $short_desc = get_field('short_description');
-    $is_free = nvg_is_free_video(get_the_ID());
-    $can_watch_video = nvg_user_can_watch_video(get_the_ID());
-    $categories = get_the_terms(get_the_ID(), 'video-category');
+    $is_free = nvg_is_free_video($current_video_id);
+    $can_watch_video = nvg_user_can_watch_video($current_video_id);
+    $has_individual_access = nvg_user_has_individual_access($current_video_id);
+    $should_auto_open_paywall = (!$can_watch_video && !$is_free);
+    $categories = get_the_terms($current_video_id, 'video-category');
+
+    $video_content_html = '';
+    if (get_the_content()) {
+        $video_content_html = apply_filters('the_content', get_the_content());
+
+        // If user bought this video individually, remove memberships upsell notice from content area.
+        if ($has_individual_access && function_exists('wc_memberships_get_restricted_content_message') && function_exists('wc_memberships_is_post_content_restricted') && wc_memberships_is_post_content_restricted($current_video_id)) {
+            $restriction_message = wc_memberships_get_restricted_content_message(get_post($current_video_id));
+            if (!empty($restriction_message)) {
+                $video_content_html = str_replace((string) $restriction_message, '', (string) $video_content_html);
+            }
+        }
+    }
 ?>
 
 <div class="nvg-single-wrapper">
@@ -34,8 +50,15 @@ while (have_posts()) : the_post();
                         allowfullscreen>
                 </iframe>
             <?php elseif (!$can_watch_video) : ?>
-                <div class="nvg-no-video nvg-restricted-video">
-                    <?php echo wp_kses_post(nvg_get_video_restriction_message(get_the_ID())); ?>
+                <div class="nvg-no-video nvg-restricted-video" data-post-id="<?php echo esc_attr($current_video_id); ?>" <?php echo $should_auto_open_paywall ? 'data-nvg-auto-paywall="1"' : ''; ?>>
+                    <?php echo wp_kses_post(nvg_get_video_restriction_message($current_video_id)); ?>
+                    <?php if ($should_auto_open_paywall) : ?>
+                        <p>
+                            <button type="button" class="nvg-btn nvg-btn-primary nvg-open-paywall-popup" data-post-id="<?php echo esc_attr($current_video_id); ?>">
+                                <?php esc_html_e('View Membership Plans', 'netflix-video-gallery'); ?>
+                            </button>
+                        </p>
+                    <?php endif; ?>
                 </div>
             <?php else : ?>
                 <div class="nvg-no-video">
@@ -80,9 +103,9 @@ while (have_posts()) : the_post();
                 </div>
             <?php endif; ?>
             
-            <?php if (get_the_content()) : ?>
+            <?php if (trim(wp_strip_all_tags((string) $video_content_html)) !== '') : ?>
                 <div class="nvg-single-content">
-                    <?php the_content(); ?>
+                    <?php echo wp_kses_post($video_content_html); ?>
                 </div>
             <?php endif; ?>
         </div>
