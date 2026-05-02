@@ -117,7 +117,6 @@ function nvg_is_featured_video($post_id) {
  */
 function nvg_get_commerce_config() {
     $defaults = array(
-        'single_course_product_id' => 0,
         'single_video_product_id'  => 0,
         'monthly_product_id'       => 0,
         'yearly_product_id'        => 0,
@@ -156,7 +155,6 @@ function nvg_get_commerce_config() {
     $yearly_id = isset($subscription_ids[1]) ? absint($subscription_ids[1]) : absint($settings['yearly_product_id']);
 
     return array(
-        'single_course_product_id' => absint($settings['single_course_product_id']),
         'single_video_product_id'  => absint($settings['single_video_product_id']),
         'monthly_product_id'       => $monthly_id,
         'yearly_product_id'        => $yearly_id,
@@ -280,10 +278,6 @@ function nvg_get_individual_product_id_for_post($post_id) {
 
     $config = nvg_get_commerce_config();
 
-    if ($post->post_type === 'course') {
-        return absint($config['single_course_product_id']);
-    }
-
     if ($post->post_type === 'video-gallery') {
         return absint($config['single_video_product_id']);
     }
@@ -364,7 +358,7 @@ function nvg_get_user_purchased_posts($post_type = '', $user_id = 0) {
     }
 
     $query_args = array(
-        'post_type'      => $post_type ? $post_type : array('video-gallery', 'course'),
+        'post_type'      => $post_type ? $post_type : array('video-gallery'),
         'post_status'    => 'publish',
         'posts_per_page' => -1,
         'post__in'       => $purchased_ids,
@@ -440,35 +434,6 @@ function nvg_user_can_watch_video($post_id) {
 }
 
 /**
- * Check whether current user can access a course
- */
-function nvg_user_can_access_course($course_id) {
-    $course_id = absint($course_id);
-
-    if (!$course_id) {
-        return false;
-    }
-
-    // Individually purchased courses are always accessible.
-    if (nvg_user_has_individual_access($course_id)) {
-        return true;
-    }
-
-    // If Memberships restricts this course, rely on Memberships per-post access.
-    if (function_exists('wc_memberships_is_post_content_restricted') && function_exists('wc_memberships_user_can') && wc_memberships_is_post_content_restricted($course_id)) {
-        return wc_memberships_user_can(get_current_user_id(), 'view', array('post' => $course_id));
-    }
-
-    // For non-restricted courses, allow active subscribers.
-    if (nvg_user_has_subscription_access()) {
-        return true;
-    }
-
-    // Default deny when no entitlement is present.
-    return false;
-}
-
-/**
  * Get the restriction message shown when a user cannot watch a paid video
  */
 function nvg_get_video_restriction_message($post_id) {
@@ -518,7 +483,7 @@ function nvg_filter_memberships_restriction_message($message, $post = null) {
     }
 
     $post_type = get_post_type($post_id);
-    if (!in_array($post_type, array('video-gallery', 'course'), true)) {
+    if ('video-gallery' !== $post_type) {
         return $message;
     }
 
@@ -687,7 +652,6 @@ function nvg_sanitize_commerce_settings($input) {
     $subscription_ids = array_values(array_unique(array_filter(array_map('absint', $subscription_ids_raw))));
 
     return array(
-        'single_course_product_id' => absint($input['single_course_product_id'] ?? 0),
         'single_video_product_id'  => absint($input['single_video_product_id'] ?? 0),
         'monthly_product_id'       => absint($input['monthly_product_id'] ?? 0),
         'yearly_product_id'        => absint($input['yearly_product_id'] ?? 0),
@@ -782,13 +746,6 @@ function nvg_render_membership_popup_settings_page() {
                         </td>
                     </tr>
                     <tr>
-                        <th scope="row"><label for="nvg_single_course_product_id"><?php esc_html_e('Single Course Product ID', 'netflix-video-gallery'); ?></label></th>
-                        <td>
-                            <input name="nvg_commerce_settings[single_course_product_id]" id="nvg_single_course_product_id" type="number" min="0" class="small-text" value="<?php echo esc_attr($commerce_settings['single_course_product_id']); ?>">
-                            <p class="description"><?php esc_html_e('WooCommerce product used as the carrier for individual course purchases.', 'netflix-video-gallery'); ?></p>
-                        </td>
-                    </tr>
-                    <tr>
                         <th scope="row"><label for="nvg_subscription_product_ids"><?php esc_html_e('Subscription Product IDs', 'netflix-video-gallery'); ?></label></th>
                         <td>
                             <textarea name="nvg_commerce_settings[subscription_product_ids_text]" id="nvg_subscription_product_ids" rows="5" class="large-text"><?php echo esc_textarea(implode("\n", nvg_get_subscription_product_ids())); ?></textarea>
@@ -854,7 +811,7 @@ function nvg_render_membership_popup_settings_page() {
  * Render paywall popup in footer on plugin pages
  */
 function nvg_render_membership_popup_modal() {
-    if (!is_post_type_archive('video-gallery') && !is_tax('video-category') && !is_singular('video-gallery') && !is_singular('course')) {
+    if (!is_post_type_archive('video-gallery') && !is_tax('video-category') && !is_singular('video-gallery')) {
         return;
     }
 
@@ -982,13 +939,9 @@ function nvg_render_purchased_library_section($posts, $section_title, $type) {
             <span class="nvg-library-section-count"><?php echo esc_html(count($posts)); ?></span>
         </div>
         <div class="nvg-library-section-panel">
-            <div class="nvg-library-grid <?php echo 'course' === $type ? 'nvg-library-course-grid' : 'nvg-library-video-grid'; ?>">
+            <div class="nvg-library-grid nvg-library-video-grid">
                 <?php foreach ($posts as $post) : ?>
-                    <?php if ('course' === $type) : ?>
-                        <?php nvg_render_course_card($post->ID, true); ?>
-                    <?php else : ?>
-                        <?php nvg_render_video_card($post->ID); ?>
-                    <?php endif; ?>
+                    <?php nvg_render_video_card($post->ID); ?>
                 <?php endforeach; ?>
             </div>
         </div>
@@ -1006,22 +959,20 @@ function nvg_render_my_library_account_content() {
     }
 
     $purchased_videos = nvg_get_user_purchased_posts('video-gallery');
-    $purchased_courses = nvg_get_user_purchased_posts('course');
 
     ?>
     <div class="nvg-library-page">
         <div class="nvg-library-intro">
             <h2><?php esc_html_e('My Library', 'netflix-video-gallery'); ?></h2>
-            <p><?php esc_html_e('Videos and courses you bought individually appear here.', 'netflix-video-gallery'); ?></p>
+            <p><?php esc_html_e('Videos you bought individually appear here.', 'netflix-video-gallery'); ?></p>
         </div>
 
-        <?php if (empty($purchased_videos) && empty($purchased_courses)) : ?>
+        <?php if (empty($purchased_videos)) : ?>
             <div class="nvg-no-video nvg-library-empty">
-                <p><?php esc_html_e('You have not purchased any individual videos or courses yet.', 'netflix-video-gallery'); ?></p>
+                <p><?php esc_html_e('You have not purchased any individual videos yet.', 'netflix-video-gallery'); ?></p>
             </div>
         <?php else : ?>
             <?php nvg_render_purchased_library_section($purchased_videos, __('Purchased Videos', 'netflix-video-gallery'), 'video'); ?>
-            <?php nvg_render_purchased_library_section($purchased_courses, __('Purchased Courses', 'netflix-video-gallery'), 'course'); ?>
         <?php endif; ?>
     </div>
     <?php
@@ -1035,10 +986,7 @@ function nvg_is_individual_carrier_product($product_id) {
     $product_id = absint($product_id);
     $config = nvg_get_commerce_config();
 
-    return in_array($product_id, array(
-        absint($config['single_course_product_id']),
-        absint($config['single_video_product_id']),
-    ), true);
+    return $product_id === absint($config['single_video_product_id']);
 }
 
 /**
@@ -1057,7 +1005,7 @@ function nvg_add_individual_item_to_cart_data($cart_item_data, $product_id) {
     }
 
     $content = get_post($content_id);
-    if (!$content || !in_array($content->post_type, array('video-gallery', 'course'), true)) {
+    if (!$content || 'video-gallery' !== $content->post_type) {
         return $cart_item_data;
     }
 
@@ -1118,12 +1066,8 @@ function nvg_display_individual_item_data($item_data, $cart_item) {
         return $item_data;
     }
 
-    $label = ($cart_item['nvg_content_type'] ?? '') === 'course'
-        ? __('Course Access', 'netflix-video-gallery')
-        : __('Video Access', 'netflix-video-gallery');
-
     $item_data[] = array(
-        'name'  => $label,
+        'name'  => __('Video Access', 'netflix-video-gallery'),
         'value' => sanitize_text_field($cart_item['nvg_content_title']),
     );
 

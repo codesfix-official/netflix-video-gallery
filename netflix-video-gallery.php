@@ -36,8 +36,6 @@ class Netflix_Video_Gallery {
     
     private function init_hooks() {
         add_action('init', array($this, 'register_post_type'));
-        add_action('init', array($this, 'register_course_post_type'));
-        add_action('init', array($this, 'register_lesson_post_type'));
         add_action('init', array($this, 'register_taxonomy'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'));
         add_filter('template_include', array($this, 'load_templates'));
@@ -45,7 +43,6 @@ class Netflix_Video_Gallery {
     
     private function include_files() {
         require_once NVG_PLUGIN_DIR . 'includes/helper-functions.php';
-        require_once NVG_PLUGIN_DIR . 'includes/course-helpers.php';
         require_once NVG_PLUGIN_DIR . 'includes/ajax-handlers.php';
     }
     
@@ -119,79 +116,6 @@ class Netflix_Video_Gallery {
     }
 
     /**
-     * Register Course Custom Post Type
-     */
-    public function register_course_post_type() {
-        $labels = array(
-            'name'               => 'Courses',
-            'singular_name'      => 'Course',
-            'menu_name'          => 'Courses',
-            'add_new'            => 'Add New Course',
-            'add_new_item'       => 'Add New Course',
-            'edit_item'          => 'Edit Course',
-            'new_item'           => 'New Course',
-            'view_item'          => 'View Course',
-            'search_items'       => 'Search Courses',
-            'not_found'          => 'No courses found',
-            'not_found_in_trash' => 'No courses found in Trash',
-        );
-        
-        $args = array(
-            'labels'              => $labels,
-            'public'              => true,
-            'publicly_queryable'  => true,
-            'show_ui'             => true,
-            'show_in_menu'        => true,
-            'query_var'           => true,
-            'rewrite'             => array('slug' => 'course'),
-            'capability_type'     => 'post',
-            'has_archive'         => true,
-            'hierarchical'        => false,
-            'menu_position'       => 6,
-            'menu_icon'           => 'dashicons-book',
-            'supports'            => array('title', 'editor', 'thumbnail', 'excerpt'),
-            'show_in_rest'        => true,
-        );
-        
-        register_post_type('course', $args);
-    }
-
-    /**
-     * Register Lesson Custom Post Type
-     */
-    public function register_lesson_post_type() {
-        $labels = array(
-            'name'               => 'Lessons',
-            'singular_name'      => 'Lesson',
-            'menu_name'          => 'Lessons',
-            'add_new'            => 'Add New Lesson',
-            'add_new_item'       => 'Add New Lesson',
-            'edit_item'          => 'Edit Lesson',
-            'new_item'           => 'New Lesson',
-            'view_item'          => 'View Lesson',
-            'search_items'       => 'Search Lessons',
-            'not_found'          => 'No lessons found',
-            'not_found_in_trash' => 'No lessons found in Trash',
-        );
-        
-        $args = array(
-            'labels'              => $labels,
-            'public'              => false,
-            'publicly_queryable'  => false,
-            'show_ui'             => true,
-            'show_in_menu'        => 'edit.php?post_type=course',
-            'query_var'           => false,
-            'capability_type'     => 'post',
-            'hierarchical'        => false,
-            'menu_position'       => 7,
-            'supports'            => array('title', 'editor'),
-            'show_in_rest'        => true,
-        );
-        
-        register_post_type('lesson', $args);
-    }
-    
-    /**
      * Enqueue Scripts and Styles
      */
     public function enqueue_scripts() {
@@ -207,8 +131,6 @@ class Netflix_Video_Gallery {
         if (is_post_type_archive('video-gallery') || 
             is_singular('video-gallery') || 
             is_tax('video-category') ||
-            is_singular('course') ||
-            is_post_type_archive('course') ||
             $is_library_endpoint) {
             
             // Swiper CSS
@@ -265,30 +187,8 @@ class Netflix_Video_Gallery {
                 );
             }
 
-            // Course Player JS (only on single course pages)
-            if (is_singular('course')) {
-                wp_enqueue_script(
-                    'nvg-course-player',
-                    NVG_PLUGIN_URL . 'assets/js/course-player.js',
-                    array('jquery', 'vimeo-player'),
-                    NVG_VERSION,
-                    true
-                );
-            }
-
-            // Course archive search JS (only on course archive pages)
-            if (is_post_type_archive('course')) {
-                wp_enqueue_script(
-                    'nvg-course-archive',
-                    NVG_PLUGIN_URL . 'assets/js/course-archive.js',
-                    array('jquery', 'nvg-main'),
-                    NVG_VERSION,
-                    true
-                );
-            }
-
             // Paywall popup for viewers who may lack access to a specific item.
-            if (is_post_type_archive('video-gallery') || is_tax('video-category') || is_singular('video-gallery') || is_singular('course')) {
+            if (is_post_type_archive('video-gallery') || is_tax('video-category') || is_singular('video-gallery')) {
                 wp_enqueue_script(
                     'nvg-paywall-popup',
                     NVG_PLUGIN_URL . 'assets/js/paywall-popup.js',
@@ -332,20 +232,6 @@ class Netflix_Video_Gallery {
             }
         }
 
-        if (is_singular('course')) {
-            $custom_template = NVG_PLUGIN_DIR . 'templates/single-course.php';
-            if (file_exists($custom_template)) {
-                return $custom_template;
-            }
-        }
-
-        if (is_post_type_archive('course')) {
-            $custom_template = NVG_PLUGIN_DIR . 'templates/archive-course.php';
-            if (file_exists($custom_template)) {
-                return $custom_template;
-            }
-        }
-        
         return $template;
     }
 }
@@ -367,8 +253,6 @@ register_activation_hook(__FILE__, 'nvg_activate');
 function nvg_activate() {
     $plugin = Netflix_Video_Gallery::get_instance();
     $plugin->register_post_type();
-    $plugin->register_course_post_type();
-    $plugin->register_lesson_post_type();
     $plugin->register_taxonomy();
     flush_rewrite_rules();
 }

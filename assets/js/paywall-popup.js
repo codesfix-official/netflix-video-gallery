@@ -55,8 +55,7 @@
                     return;
                 }
 
-                const label = response.data.post_type === 'course' ? 'Buy This Course' : 'Buy This Video';
-                $singleLabel.text(label);
+                $singleLabel.text('Buy This Video');
                 $singlePrice.html(response.data.price_html || '');
                 $singleBuy.attr('href', response.data.add_to_cart_url || response.data.checkout_url || '#');
                 $singleOffer.prop('hidden', false);
@@ -93,21 +92,6 @@
         $(document).on('click', '.nvg-video-card[data-is-free="0"] .nvg-card-link', function(e) {
             const $card = $(this).closest('.nvg-video-card');
             if ($card.data('can-watch') === 1 || $card.data('can-watch') === '1') {
-                return;
-            }
-
-            e.preventDefault();
-            const postId = $card.data('post-id') || 0;
-            openModal(postId);
-        });
-
-        $(document).on('click', '.nvg-course-card-link', function(e) {
-            const $card = $(this).closest('.nvg-course-card');
-            if (!$card.length) {
-                return;
-            }
-
-            if ($card.data('can-access') === 1 || $card.data('can-access') === '1') {
                 return;
             }
 
