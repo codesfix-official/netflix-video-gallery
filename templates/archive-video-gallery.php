@@ -34,7 +34,6 @@ get_header();
                 <div class="swiper-wrapper">
                     <?php while ($featured_query->have_posts()) : $featured_query->the_post(); 
                         $video_url = get_field('video_url');
-                        $video_id = nvg_get_vimeo_id($video_url);
                         $thumbnail = nvg_get_video_thumbnail(get_the_ID());
                         $short_desc = get_field('short_description');
                     ?>

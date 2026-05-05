@@ -62,7 +62,9 @@ function nvg_ajax_filter_videos() {
                 'permalink'   => get_permalink(),
                 'thumbnail'   => nvg_get_video_thumbnail($post_id),
                 'video_url'   => $can_watch ? $video_url : '',
-                'video_id'    => $can_watch ? nvg_get_vimeo_id($video_url) : '',
+                'video_id'    => $can_watch ? nvg_get_video_id($video_url) : '',
+                'provider'    => $can_watch ? nvg_get_video_provider($video_url) : '',
+                'embed_url'   => $can_watch ? nvg_get_video_embed_url($video_url) : '',
                 'is_free'     => nvg_is_free_video($post_id),
                 'can_watch'   => $can_watch,
                 'description' => get_field('short_description', $post_id),
@@ -153,7 +155,9 @@ function nvg_ajax_get_video_data() {
     }
     
     $video_url = get_field('video_url', $post_id);
-    $video_id = nvg_get_vimeo_id($video_url);
+    $video_id = nvg_get_video_id($video_url);
+    $provider = nvg_get_video_provider($video_url);
+    $embed_url = nvg_get_video_embed_url($video_url);
     
     $categories = get_the_terms($post_id, 'video-category');
     $category_name = !empty($categories) ? $categories[0]->name : '';
@@ -163,7 +167,9 @@ function nvg_ajax_get_video_data() {
         'title'       => get_the_title($post_id),
         'description' => get_field('short_description', $post_id),
         'video_id'    => $video_id,
+        'provider'    => $provider,
         'video_url'   => $video_url,
+        'embed_url'   => $embed_url,
         'category'    => $category_name,
         'permalink'   => get_permalink($post_id),
     ));

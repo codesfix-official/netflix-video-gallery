@@ -1,7 +1,7 @@
 (function($) {
     'use strict';
     
-    let player;
+    let playerElement;
     let currentIndex = 0;
     let playlist = [];
     
@@ -15,37 +15,13 @@
      * Initialize Vimeo Player
      */
     function initPlayer() {
-        const $playerElement = $('#nvg-vimeo-player');
+        const $playerElement = $('#nvg-video-player');
         
         if (!$playerElement.length) {
             return;
         }
-        
-        const videoId = $playerElement.data('video-id');
-        
-        if (!videoId) {
-            console.error('No video ID found');
-            return;
-        }
-        
-        // Create Vimeo player
-        player = new Vimeo.Player('nvg-vimeo-player', {
-            id: videoId,
-            width: 1920,
-            responsive: true,
-            controls: true,
-            autoplay: false,
-        });
-        
-        // Listen for video end event
-        player.on('ended', function() {
-            playNextVideo();
-        });
-        
-        // Listen for errors
-        player.on('error', function(error) {
-            console.error('Vimeo player error:', error);
-        });
+
+        playerElement = $playerElement.get(0);
     }
     
     /**
@@ -63,7 +39,6 @@
         $playlistItems.each(function(index) {
             const $item = $(this);
             playlist.push({
-                videoId: $item.data('video-id'),
                 postId: $item.data('post-id'),
                 canWatch: Number($item.data('can-watch')) === 1,
                 index: index,
@@ -94,7 +69,7 @@
         
         const video = playlist[index];
 
-        if (!video.canWatch || !video.videoId) {
+        if (!video.canWatch) {
             if (window.NVGPaywall) {
                 $(document).trigger('nvg:openPaywallPopup', { postId: video.postId });
                 return;
@@ -137,7 +112,7 @@
                 scrollToActiveItem();
 
                 updatePlayerContent(response.data);
-                loadVideoInPlayer(video.videoId);
+                loadVideoInPlayer(response.data.embed_url || '');
             },
             error: function(xhr, status, error) {
                 console.error('AJAX error:', error);
@@ -148,17 +123,18 @@
     /**
      * Load video in player
      */
-    function loadVideoInPlayer(videoId) {
-        if (!player) {
+    function loadVideoInPlayer(embedUrl) {
+        if (!playerElement) {
             console.error('Player not initialized');
             return;
         }
-        
-        player.loadVideo(videoId).then(function() {
-            player.play();
-        }).catch(function(error) {
-            console.error('Error loading video:', error);
-        });
+
+        if (!embedUrl) {
+            console.error('No embed URL provided');
+            return;
+        }
+
+        playerElement.setAttribute('src', embedUrl);
     }
     
     /**
@@ -175,34 +151,6 @@
         if (history.pushState && data.permalink) {
             history.pushState({ postId: data.id, videoId: data.video_id }, data.title, data.permalink);
         }
-    }
-    
-    /**
-     * Play next video in playlist
-     */
-    function playNextVideo() {
-        let nextIndex = currentIndex + 1;
-        
-        // Loop back to start if at end
-        if (nextIndex >= playlist.length) {
-            nextIndex = 0;
-        }
-        
-        playVideoByIndex(nextIndex);
-    }
-    
-    /**
-     * Play previous video
-     */
-    function playPreviousVideo() {
-        let prevIndex = currentIndex - 1;
-        
-        // Loop to end if at start
-        if (prevIndex < 0) {
-            prevIndex = playlist.length - 1;
-        }
-        
-        playVideoByIndex(prevIndex);
     }
     
     /**

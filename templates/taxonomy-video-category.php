@@ -95,14 +95,24 @@ foreach ($ordered_videos as $video_post) {
         <div class="nvg-player-section">
             <?php if ($initial_video) : 
                 $video_url = get_field('video_url', $initial_video->ID);
-                $video_id = nvg_get_vimeo_id($video_url);
+                $embed_url = nvg_get_video_embed_url($video_url);
                 $short_desc = get_field('short_description', $initial_video->ID);
             ?>
                 <div class="nvg-player-wrapper">
-                    <div id="nvg-vimeo-player" 
-                         data-video-id="<?php echo esc_attr($video_id); ?>"
-                         data-post-id="<?php echo esc_attr($initial_video->ID); ?>">
-                    </div>
+                    <?php if ($embed_url) : ?>
+                        <iframe id="nvg-video-player"
+                                src="<?php echo esc_url($embed_url); ?>"
+                                width="100%"
+                                height="100%"
+                                frameborder="0"
+                                allow="autoplay; fullscreen; picture-in-picture"
+                                allowfullscreen>
+                        </iframe>
+                    <?php else : ?>
+                        <div class="nvg-no-video">
+                            <p><?php esc_html_e('Video not available', 'netflix-video-gallery'); ?></p>
+                        </div>
+                    <?php endif; ?>
                 </div>
                 
                 <div class="nvg-player-info">
@@ -142,8 +152,6 @@ foreach ($ordered_videos as $video_post) {
                     if (!empty($ordered_videos)) :
                         foreach ($ordered_videos as $index => $video_post) :
                             $post_id = $video_post->ID;
-                            $video_url = get_field('video_url', $post_id);
-                            $video_id = nvg_get_vimeo_id($video_url);
                             $thumbnail = nvg_get_video_thumbnail($post_id, 'medium');
                             $is_free = nvg_is_free_video($post_id);
                             $can_watch = nvg_user_can_watch_video($post_id);
@@ -151,7 +159,6 @@ foreach ($ordered_videos as $video_post) {
                             $is_active = ($initial_video && $post_id === $initial_video->ID) ? 'active' : '';
                     ?>
                         <div class="nvg-playlist-item <?php echo esc_attr(trim($is_active . ' ' . ($is_locked ? 'locked' : ''))); ?>" 
-                             data-video-id="<?php echo esc_attr($can_watch ? $video_id : ''); ?>"
                              data-post-id="<?php echo esc_attr($post_id); ?>"
                              data-can-watch="<?php echo esc_attr($can_watch ? '1' : '0'); ?>"
                              data-index="<?php echo esc_attr($index); ?>">

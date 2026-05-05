@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Netflix Video Gallery
- * Description: Netflix-style video gallery with Vimeo integration and ACF fields
+ * Description: Netflix-style video gallery with YouTube and Vimeo integration using ACF fields
  * Version: 1.0.1
  * Author: codesfix
  * Author URI: https://www.codesfix.net/
@@ -158,15 +158,6 @@ class Netflix_Video_Gallery {
                 true
             );
             
-            // Vimeo Player API
-            wp_enqueue_script(
-                'vimeo-player',
-                'https://player.vimeo.com/api/player.js',
-                array(),
-                null,
-                true
-            );
-            
             // Main JS
             wp_enqueue_script(
                 'nvg-main',
@@ -181,7 +172,7 @@ class Netflix_Video_Gallery {
                 wp_enqueue_script(
                     'nvg-category-player',
                     NVG_PLUGIN_URL . 'assets/js/category-player.js',
-                    array('jquery', 'vimeo-player'),
+                    array('jquery'),
                     NVG_VERSION,
                     true
                 );

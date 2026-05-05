@@ -8,43 +8,133 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * Extract Vimeo ID from URL
+ * Detect video provider from URL.
  */
-function nvg_get_vimeo_id($url) {
-    if (empty($url)) {
+function nvg_get_video_provider($url) {
+    $url = trim((string) $url);
+    if ('' === $url) {
+        return '';
+    }
+
+    $host = (string) wp_parse_url($url, PHP_URL_HOST);
+    $host = strtolower($host);
+
+    if (false !== strpos($host, 'youtu.be') || false !== strpos($host, 'youtube.com')) {
+        return 'youtube';
+    }
+
+    if (false !== strpos($host, 'vimeo.com')) {
+        return 'vimeo';
+    }
+
+    return '';
+}
+
+/**
+ * Extract YouTube ID from URL.
+ */
+function nvg_get_youtube_id($url) {
+    $url = trim((string) $url);
+    if ('' === $url) {
         return false;
     }
-    
-    // Pattern to match Vimeo URLs
-    $pattern = '/(?:https?:\/\/)?(?:www\.)?(?:player\.)?vimeo\.com\/(?:video\/|channels\/[\w]+\/|groups\/[\w]+\/videos\/|album\/\d+\/video\/)?(\d+)(?:$|\/|\?)/';
-    
+
+    $patterns = array(
+        '/(?:youtube\.com\/watch\?v=|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtu\.be\/)([A-Za-z0-9_-]{11})/i',
+        '/youtube\.com\/.*[?&]v=([A-Za-z0-9_-]{11})/i',
+    );
+
+    foreach ($patterns as $pattern) {
+        if (preg_match($pattern, $url, $matches)) {
+            return $matches[1];
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Extract Vimeo ID from URL.
+ */
+function nvg_get_vimeo_id($url) {
+    $url = trim((string) $url);
+    if ('' === $url) {
+        return false;
+    }
+
+    $pattern = '/(?:https?:\/\/)?(?:www\.)?(?:player\.)?vimeo\.com\/(?:video\/|channels\/[\w]+\/|groups\/[\w]+\/videos\/|album\/\d+\/video\/)?(\d+)(?:$|\/|\?)/i';
+
     preg_match($pattern, $url, $matches);
-    
+
     return isset($matches[1]) ? $matches[1] : false;
 }
 
 /**
- * Get Vimeo embed URL
+ * Extract a provider-specific video ID from URL.
  */
-function nvg_get_vimeo_embed_url($url, $autoplay = false) {
-    $video_id = nvg_get_vimeo_id($url);
-    
+function nvg_get_video_id($url) {
+    $provider = nvg_get_video_provider($url);
+
+    if ('youtube' === $provider) {
+        return nvg_get_youtube_id($url);
+    }
+
+    if ('vimeo' === $provider) {
+        return nvg_get_vimeo_id($url);
+    }
+
+    return false;
+}
+
+/**
+ * Get embed URL for supported providers (YouTube, Vimeo).
+ */
+function nvg_get_video_embed_url($url, $autoplay = false) {
+    $provider = nvg_get_video_provider($url);
+    $video_id = nvg_get_video_id($url);
+
     if (!$video_id) {
         return false;
     }
-    
-    $params = array(
-        'title' => 0,
-        'byline' => 0,
-        'portrait' => 0,
-    );
-    
-    if ($autoplay) {
-        $params['autoplay'] = 1;
-        $params['muted'] = 1;
+
+    if ('youtube' === $provider) {
+        $params = array(
+            'rel' => 0,
+            'modestbranding' => 1,
+            'playsinline' => 1,
+        );
+
+        if ($autoplay) {
+            $params['autoplay'] = 1;
+            $params['mute'] = 1;
+        }
+
+        return 'https://www.youtube.com/embed/' . rawurlencode($video_id) . '?' . http_build_query($params);
     }
-    
-    return 'https://player.vimeo.com/video/' . $video_id . '?' . http_build_query($params);
+
+    if ('vimeo' === $provider) {
+        $params = array(
+            'title' => 0,
+            'byline' => 0,
+            'portrait' => 0,
+        );
+
+        if ($autoplay) {
+            $params['autoplay'] = 1;
+            $params['muted'] = 1;
+        }
+
+        return 'https://player.vimeo.com/video/' . rawurlencode($video_id) . '?' . http_build_query($params);
+    }
+
+    return false;
+}
+
+/**
+ * Backward-compatible alias.
+ */
+function nvg_get_vimeo_embed_url($url, $autoplay = false) {
+    return nvg_get_video_embed_url($url, $autoplay);
 }
 
 /**
@@ -55,11 +145,16 @@ function nvg_get_video_thumbnail($post_id, $size = 'large') {
         return get_the_post_thumbnail_url($post_id, $size);
     }
     
-    // Fallback to Vimeo thumbnail
+    // Fallback to provider thumbnail.
     $video_url = get_field('video_url', $post_id);
-    $video_id = nvg_get_vimeo_id($video_url);
-    
-    if ($video_id) {
+    $video_id = nvg_get_video_id($video_url);
+    $provider = nvg_get_video_provider($video_url);
+
+    if ($video_id && 'youtube' === $provider) {
+        return 'https://img.youtube.com/vi/' . rawurlencode($video_id) . '/hqdefault.jpg';
+    }
+
+    if ($video_id && 'vimeo' === $provider) {
         $vimeo_data = nvg_get_vimeo_thumbnail($video_id);
         return $vimeo_data ? $vimeo_data : NVG_PLUGIN_URL . 'assets/images/placeholder.jpg';
     }
@@ -532,7 +627,7 @@ function nvg_get_related_videos($post_id, $limit = 6) {
  */
 function nvg_render_video_card($post_id, $lazy = true) {
     $video_url = get_field('video_url', $post_id);
-    $video_id = nvg_get_vimeo_id($video_url);
+    $video_id = nvg_get_video_id($video_url);
     $thumbnail = nvg_get_video_thumbnail($post_id);
     $is_free = nvg_is_free_video($post_id);
     $can_watch = nvg_user_can_watch_video($post_id);
